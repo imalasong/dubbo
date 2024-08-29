@@ -18,7 +18,9 @@ package org.apache.dubbo.common.timer;
 
 import org.apache.dubbo.common.utils.NamedThreadFactory;
 
+import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -50,6 +52,19 @@ class HashedWheelTimerTest {
         public void run(Timeout timeout) {
             errorTaskCountDownLatch.countDown();
             throw new RuntimeException("Test");
+        }
+    }
+
+    private class PrintTimeTask implements TimerTask {
+
+        private int index;
+
+        public PrintTimeTask(int index){
+            this.index = index;
+        }
+        @Override
+        public void run(Timeout timeout) {
+            System.out.println(this.index+"-我执行了："+new Date());
         }
     }
 
@@ -170,5 +185,35 @@ class HashedWheelTimerTest {
 
         // this will throw an exception
         Assertions.assertThrows(RuntimeException.class, () -> timer.newTimeout(new EmptyTask(), 5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void runTaskTest() throws InterruptedException, IOException {
+        HashedWheelTimer timer = new HashedWheelTimer(
+                new NamedThreadFactory("dubbo-future-timeout", true), 10, TimeUnit.MILLISECONDS, 8, 0);
+
+        System.out.println("run:"+new Date());
+        for(int i=0;i<10;i++){
+            Timeout timeout = timer.newTimeout(new PrintTimeTask(i), 10, TimeUnit.SECONDS);
+            System.out.println("添加成功："+i+"="+timeout);
+        }
+
+        //timeout.cancel();
+//        new Thread(()->{
+//            while (true){
+//                System.out.println(timeout.isCancelled());
+//                System.out.println(timeout.isExpired());
+//                try {
+//                    Thread.sleep(1000*1);
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+//                timeout.cancel();
+//            }
+//        }).start();
+
+        System.in.read();
+
+        timer.stop();
     }
 }
